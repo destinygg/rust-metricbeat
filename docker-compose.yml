@@ -1,0 +1,11 @@
+version: '3.7'
+
+services:
+  rust-metricbeat:
+    build:
+      context: .
+    env_file:
+      - .env
+    container_name: rust-metricbeat
+    restart: unless-stopped
+    network_mode: host
