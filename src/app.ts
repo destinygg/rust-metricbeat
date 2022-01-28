@@ -9,7 +9,8 @@ declare var process: {
     RUST_WS: string,
     ELASTIC_CONNECT: string,
     SERVERINFO_CRON: string
-  }
+  },
+  exit: any
 }
 
 const ws = new WebSocket(process.env.RUST_WS);
@@ -25,9 +26,19 @@ interface RCONMessage {
   Stacktrace?: string,
 }
 
+ws.on('close', function close() {
+  console.log('! Websocket closed, crashing out :(');
+  process.exit();
+});
+
+ws.on('error', function err(err) {
+  console.log('! something broke! -', err);
+  process.exit();
+});
+
 ws.on('message', function message(data) {
-  const msg: RCONMessage = JSON.parse(data.toString('utf-8'))
-  const now = new Date()
+  const msg: RCONMessage = JSON.parse(data.toString('utf-8'));
+  const now = new Date();
 
   if (msg.Identifier === 9999999) {
     console.log('> received serverinfo from scheduled ask');
