@@ -8,7 +8,8 @@ declare var process: {
   env: {
     RUST_WS: string,
     ELASTIC_CONNECT: string,
-    SERVERINFO_CRON: string
+    SERVERINFO_CRON: string,
+    ENABLE_YVP: string,
   },
   exit: any
 }
@@ -40,6 +41,12 @@ ws.on('message', function message(data) {
   const msg: RCONMessage = JSON.parse(data.toString('utf-8'));
   const now = new Date();
 
+  console.log('> received websocket frame from rcon');
+
+  if (msg.Message == "") {
+    return;
+  }
+
   if (msg.Identifier === 9999999) {
     console.log('> received serverinfo from scheduled ask');
 
@@ -47,11 +54,26 @@ ws.on('message', function message(data) {
 
     // hack in metadata to existing object -> elasticsearch document
     telemetry['@timestamp'] = now.toISOString();
-    telemetry.EventType = 'serverinfo';
+    telemetry['EventType'] = 'serverinfo';
 
     writeIndex(telemetry);
+  }  else if (msg.Identifier === 9999998) {
+    console.log('> received bouncer.yvpdump from scheduled ask');
+
+    // strip out cringe [Bouncer] from reply lol
+    const cringelessJSON: string = msg.Message.replace('[Bouncer]','');
+    const pepeVsYeeStats = JSON.parse(cringelessJSON);
+
+    console.log(pepeVsYeeStats);
+
+    // hack in metadata to existing object -> elasticsearch document
+    pepeVsYeeStats['@timestamp'] = now.toISOString();
+    pepeVsYeeStats['EventType'] = 'bouncer.yvpdump';
+
+    writeIndex(pepeVsYeeStats);
+
   } else {
-    console.log('> got rcon message', msg.Message);
+    console.log('> got generic rcon message', msg.Message);
 
     // build object -> elasticsearch document
     const telemetry = {
@@ -76,6 +98,16 @@ cron.schedule(process.env.SERVERINFO_CRON, function() {
   };
 
   ws.send(JSON.stringify(payload));
+
+  if (process.env.ENABLE_YVP === 'true') {
+    console.log('< emitting websocket bouncer.yvpdump');
+    const customPayload: RCONMessage = {
+      Message: "bouncer.yvpdump",
+      Identifier: 9999998
+    };
+
+    ws.send(JSON.stringify(customPayload));
+  };
 });
 
 function writeIndex(doc: object) {
