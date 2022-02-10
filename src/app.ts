@@ -43,6 +43,7 @@ ws.on('message', function message(data) {
 
   console.log('> received websocket frame from rcon');
 
+  // sometimes oxide messages throw empty frames so handle them lol !
   if (msg.Message == "") {
     return;
   }
